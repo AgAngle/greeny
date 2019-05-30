@@ -22,10 +22,6 @@ import java.util.Map;
 
 public class ExcelUtil {
 
-    private Workbook workBook;
-    private XSSFWorkbook wb = null;
-    private Sheet sheet;    //表格类实例
-    LinkedList[] result;    //保存每个单元格的数据 ，使用的是一种链表数组的结构
 
     /**
      * 加载excel文件，获取excel工作区
@@ -38,6 +34,7 @@ public class ExcelUtil {
             IOException {
         File file = new File(filePathAndName);
         FileInputStream fis = null;
+        XSSFWorkbook wb = null;
         try {
             fis = new FileInputStream(file);
             wb = new XSSFWorkbook(fis);
@@ -63,7 +60,7 @@ public class ExcelUtil {
      * @param sheetNo
      * @return
      */
-    public String getSheetName(int sheetNo) {
+    public String getSheetName(XSSFWorkbook wb, int sheetNo) {
         return wb.getSheetName(sheetNo - 1);
     }
 
@@ -72,7 +69,7 @@ public class ExcelUtil {
      *
      * @return int
      */
-    public int getSheetCount() throws Exception {
+    public int getSheetCount(XSSFWorkbook wb) throws Exception {
         int sheetCount = wb.getNumberOfSheets();
         if (sheetCount == 0) {
             throw new Exception("Excel中没有SHEET页");
@@ -86,7 +83,7 @@ public class ExcelUtil {
      * @param sheetNo
      * @return
      */
-    public int getRowCount(int sheetNo) {
+    public int getRowCount(XSSFWorkbook wb, int sheetNo) {
         int rowCount = 0;
         XSSFSheet sheet = wb.getSheetAt(sheetNo - 1);
         rowCount = sheet.getLastRowNum();
@@ -99,7 +96,7 @@ public class ExcelUtil {
      * @param sheetNo
      * @return
      */
-    public int getRealRowCount(int sheetNo) {
+    public int getRealRowCount(XSSFWorkbook wb, int sheetNo) {
         int rowCount = 0;
         int rowNum = 0;
         XSSFSheet sheet = wb.getSheetAt(sheetNo - 1);
@@ -157,7 +154,7 @@ public class ExcelUtil {
      * @return 返回相应的excel单元格内容
      * @throws Exception
      */
-    public String readExcelByRowAndCol(int sheetNo, int rowNo, int cellNo)
+    public String readExcelByRowAndCol(XSSFWorkbook wb, int sheetNo, int rowNo, int cellNo)
             throws Exception {
         String rowCellData = "";
         XSSFSheet sheet = wb.getSheetAt(sheetNo - 1);
@@ -225,14 +222,14 @@ public class ExcelUtil {
      * @return
      * @throws Exception
      */
-    public String[] readExcelByRow(int sheetNo, int rowNo) throws Exception {
+    public String[] readExcelByRow(XSSFWorkbook wb, int sheetNo, int rowNo) throws Exception {
         String[] rowData = null;
         XSSFSheet sheet = wb.getSheetAt(sheetNo - 1);
         XSSFRow row = sheet.getRow(rowNo - 1);
         int cellCount = row.getLastCellNum();
         rowData = new String[cellCount];
         for (int k = 1; k <= cellCount; k++) {
-            rowData[k - 1] = readExcelByRowAndCol(sheetNo, rowNo, k);
+            rowData[k - 1] = readExcelByRowAndCol(wb, sheetNo, rowNo, k);
         }
         return rowData;
     }
@@ -247,13 +244,13 @@ public class ExcelUtil {
      * @return
      * @throws Exception
      */
-    public String[] readExcelByCol(int sheetNo, int cellNo) throws Exception {
+    public String[] readExcelByCol(XSSFWorkbook wb, int sheetNo, int cellNo) throws Exception {
         String[] cellData = null;
         XSSFSheet sheet = wb.getSheetAt(sheetNo - 1);
         int rowCount = sheet.getLastRowNum();
         cellData = new String[rowCount + 1];
         for (int i = 0; i <= rowCount; i++) {
-            cellData[i] = readExcelByRowAndCol(sheetNo - 1, i, cellNo - 1);
+            cellData[i] = readExcelByRowAndCol(wb, sheetNo - 1, i, cellNo - 1);
         }
         return cellData;
     }
@@ -263,7 +260,7 @@ public class ExcelUtil {
      *
      * @throws Exception
      */
-    public void close() {
+    public void close(XSSFWorkbook wb) {
         if (wb != null) {
             try {
                 wb.close();
