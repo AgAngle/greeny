@@ -264,7 +264,7 @@ public class SqlUtils {
 
     public static void createAssetPermission(Map.Entry<String, String> org, Map<String, DataModle> orgDatas, AssetsUsers assetsUsers) {
 
-        File createAssetPermissionSql = getFile(org.getKey(), "7_createAssetPermissionSql.sql");
+        File createAssetPermissionSql = getFile(org.getKey(), "8_createAssetPermissionSql.sql");
 
         FileOutputStream fileOut = null;
 
@@ -444,6 +444,47 @@ public class SqlUtils {
 
         row.createCell(serverDemoFrom.getCreatorNum())
                 .setCellValue("管理员");
+
+    }
+
+    public static void deleteRootNodeWithAssets(Map.Entry<String,String> org, Map<String,DataModle> orgDatas) {
+
+        File deleteRootNodeWithAssetsSql = getFile(org.getKey(), "7_deleteRootNodeWithAssetsSql.sql");
+
+        FileOutputStream fileOut = null;
+
+        try {
+            fileOut = new FileOutputStream(deleteRootNodeWithAssetsSql);
+            for (Map.Entry<String, DataModle> entry:
+                    orgDatas.entrySet()) {
+
+                String node = entry.getKey();
+
+                for (Map.Entry<String,DataModle> nodeData:
+                     orgDatas.entrySet()) {
+
+                    for (String hostName :
+                            nodeData.getValue().getHostNames()) {
+                        String sql = "DELETE FROM assets_asset_nodes " +
+                                "WHERE asset_id = ( " +
+                                "SELECT id FROM assets_asset WHERE hostname = '" + hostName + "' and org_id = '" + org.getValue() + "'" +
+                                ") and node_id = (" +
+                                "SELECT id FROM assets_node WHERE  value = '" + org.getKey() + "' and org_id = '" + org.getValue() + "'" +
+                                ");";
+                        fileOut.write(sql.getBytes());
+                        fileOut.write("\n".getBytes());
+                    }
+
+                }
+
+
+            }
+        } catch (Exception e) {
+            System.out.println("deleteRootNodeWithAssets fail..");
+            e.printStackTrace();
+        } finally {
+            closeOutPutStream(fileOut);
+        }
 
     }
 }

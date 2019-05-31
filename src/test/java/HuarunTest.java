@@ -30,9 +30,10 @@ public class HuarunTest {
     //需要初始化组织名称
     public String []  orgStrs = new String[]{
             //"数据中心","华润医商"
-            "保险","部室"
+//            "保险","部室"
+            "华创03","华润电力03"
     };
-    public Integer rootNodeStartKey = 15;
+    public Integer rootNodeStartKey = 22;
 
 
     public Map<String,String> orgs = new TreeMap<String, String>();
@@ -106,6 +107,8 @@ public class HuarunTest {
                 SqlUtils.addAssetsToNodes(org, orgDatas);
                 //授权资产到节点
                 SqlUtils.addAssetsToNodes(org, orgDatas);
+                //授权资产到节点
+                SqlUtils.deleteRootNodeWithAssets(org, orgDatas);
                 //创建授权规则
                 SqlUtils.createAssetPermission(org, orgDatas, assetsUsers);
 
