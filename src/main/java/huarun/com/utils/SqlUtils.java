@@ -1,8 +1,12 @@
 package huarun.com.utils;
 
-import huarun.com.enity.AssetsUser;
-import huarun.com.enity.AssetsUsers;
-import huarun.com.enity.DataModle;
+import huarun.com.constant.SystemType;
+import huarun.com.enity.*;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -66,6 +70,7 @@ public class SqlUtils {
 
     public static String getCurrentTime(){
         long time = System.currentTimeMillis();
+        time -= 86400000;
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
         String currenTime = format.format(time);
         return currenTime;
@@ -327,8 +332,118 @@ public class SqlUtils {
         }
     }
 
-    public static void write(OutputStream fileOut, String sql) throws IOException {
-        fileOut.write(sql.getBytes());
-        fileOut.write("\n".getBytes());
+
+    public static void createOrgAssets(Map.Entry<String, String> org, Map<String, DataModle> orgDatas,
+                                       Map<String, ServerInfoModle> serverInfos, ServerDemoFrom serverDemoFrom, AssetsUsers assetsUsers, int orgNum) {
+
+        Set<String> orgHostNames = new TreeSet<String>();
+
+        for (DataModle nodeInfo:
+                orgDatas.values()) {
+            orgHostNames.addAll(nodeInfo.getHostNames());
+        }
+
+        int rowIdex = 1;
+        for (String hostName:
+             orgHostNames) {
+
+            ServerInfoModle serverInfoModle = serverInfos.get(hostName);
+            if(null == serverInfoModle){
+                continue;
+            }
+
+            BuildWb(serverDemoFrom, serverInfoModle, rowIdex);
+            writeToExcel(org.getKey(), serverDemoFrom.getWb(), orgNum);
+            rowIdex ++ ;
+        }
+        System.out.println("rowIdex: " + rowIdex);
+    }
+
+    public static void writeToExcel(String org, XSSFWorkbook wb, int orgNum){
+        File fileOutput = getFile(org, "assetImport" + orgNum + ".xlsx");
+        FileOutputStream fo = null; // 输出到文件
+        try {
+            fo = new FileOutputStream(fileOutput);
+            wb.write(fo);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(fo != null){
+                try {
+                    fo.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    public static void BuildWb(ServerDemoFrom serverDemoFrom, ServerInfoModle serverInfoModle, int rowIdex){
+
+        XSSFSheet firstSheet = serverDemoFrom.getFirstSheet();
+
+        XSSFRow row = firstSheet.createRow(rowIdex);
+
+
+        row.createCell(serverDemoFrom.getIpNum())
+                .setCellValue(serverInfoModle.getIp());
+
+        row.createCell(serverDemoFrom.getHostNameNum())
+                .setCellValue(serverInfoModle.getHostName());
+
+        if(serverInfoModle.getSystemType().toLowerCase().contains("windows")){
+
+            row.createCell(serverDemoFrom.getProtocolNum())
+                    .setCellValue("rdp");
+
+            row.createCell(serverDemoFrom.getPortNum())
+                    .setCellValue("3389");
+
+            row.createCell(serverDemoFrom.getPlatformNum())
+                    .setCellValue(SystemType.WINDOWS);
+
+            row.createCell(serverDemoFrom.getAdminuserNum())
+                    .setCellValue(SystemType.WinAdminusers);
+
+            row.createCell(serverDemoFrom.getOsTypeNum())
+                    .setCellValue(SystemType.WINDOWS);
+
+        } else {
+
+            row.createCell(serverDemoFrom.getProtocolNum())
+                    .setCellValue("ssh");
+
+            row.createCell(serverDemoFrom.getPortNum())
+                    .setCellValue("22");
+
+
+            row.createCell(serverDemoFrom.getAdminuserNum())
+                    .setCellValue(SystemType.linuxAdminusers);
+
+            if(serverInfoModle.getSystemType().toLowerCase().contains("linux")){
+
+                row.createCell(serverDemoFrom.getPlatformNum())
+                        .setCellValue(SystemType.LINUX);
+                row.createCell(serverDemoFrom.getOsTypeNum())
+                        .setCellValue(SystemType.LINUX);
+
+            } else if(serverInfoModle.getSystemType().toLowerCase().contains("unix")){
+                row.createCell(serverDemoFrom.getPlatformNum())
+                        .setCellValue(SystemType.UNIX);
+                row.createCell(serverDemoFrom.getOsTypeNum())
+                        .setCellValue(SystemType.UNIX);
+            } else {
+                row.createCell(serverDemoFrom.getPlatformNum())
+                        .setCellValue(SystemType.OTHER);
+                row.createCell(serverDemoFrom.getOsTypeNum())
+                        .setCellValue(SystemType.OTHER);
+            }
+        }
+
+        row.createCell(serverDemoFrom.getActivateNum())
+                .setCellValue("TRUE");
+
+        row.createCell(serverDemoFrom.getCreatorNum())
+                .setCellValue("管理员");
+
     }
 }

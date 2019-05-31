@@ -1,6 +1,8 @@
 import com.google.gson.Gson;
+import huarun.com.constant.SystemType;
 import huarun.com.enity.*;
 import huarun.com.utils.SqlUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import util.ExcelUtil;
 
@@ -17,31 +19,37 @@ public class HuarunTest {
 
     public static String serverInfoDir = "/Users/chenjianxing/Documents/init_sql/server_info_list.xlsx";
 
+    public static String serverDemoDir = "/Users/chenjianxing/Documents/init_sql/demo.xlsx";
+
     public AssestFrom assestFrom = new AssestFrom();
     public ServerInforFrom serverInforFrom = new ServerInforFrom();
+    public ServerDemoFrom serverDemoFrom = new ServerDemoFrom();
 
     public static ExcelUtil excelUtil = new ExcelUtil();
 
     //需要初始化组织名称
     public String []  orgStrs = new String[]{
-            "数据中心","华润医商"
+            //"数据中心","华润医商"
+            "保险","部室"
     };
+    public Integer rootNodeStartKey = 15;
+
 
     public Map<String,String> orgs = new TreeMap<String, String>();
     public Map<String,Integer> rootNodes = new TreeMap<String, Integer>();
-    public Integer rootNodeStartKey = 10;
-
     public static AssetsUsers assetsUsers= new AssetsUsers();
+
+
 
     static {
         List<AssetsUser> adminusers = new ArrayList<AssetsUser>();
-        adminusers.add(new AssetsUser("appuser","linux_appuser"));
-        adminusers.add(new AssetsUser("appadmin1","Win_appadmin"));
-        List<AssetsUser> systemuser = new ArrayList<AssetsUser>();
-        systemuser.add(new AssetsUser("appuser","appuser"));
-        systemuser.add(new AssetsUser("Windows","Windows"));
+        adminusers.add(new AssetsUser("appuser",SystemType.linuxAdminusers));
+        adminusers.add(new AssetsUser("appadmin1",SystemType.WinAdminusers));
+//        List<AssetsUser> systemuser = new ArrayList<AssetsUser>();
+//        systemuser.add(new AssetsUser("appuser","appuser"));
+//        systemuser.add(new AssetsUser("Windows","Windows"));
         assetsUsers.setAdminusers(adminusers);
-        assetsUsers.setSystemuser(systemuser);
+//        assetsUsers.setSystemuser(systemuser);
     }
 
 
@@ -55,11 +63,13 @@ public class HuarunTest {
             SqlUtils.createOrg(orgs, orgStrs);
 
 
+            int orgNum = 1;
             for (Map.Entry<String, String> org:
                  orgs.entrySet()) {
 
                 assestFrom.setWb(excelUtil.loadExcel2007(baseFileInputDir + org.getKey() + ".xlsx"));
                 serverInforFrom.setWb(excelUtil.loadExcel2007(serverInfoDir));
+                serverDemoFrom.setWb(excelUtil.loadExcel2007(serverDemoDir));
 
                 init();
 
@@ -75,6 +85,10 @@ public class HuarunTest {
 
                 Map<String,String> userGroups = new TreeMap<String, String>();
 
+                //将策略组中的资产，导入到对应组织的资产文件中
+                SqlUtils.createOrgAssets(org, orgDatas, serverInfos, serverDemoFrom, assetsUsers, orgNum);
+                orgNum ++ ;
+
                 //创建管理用户和系统用户
                 SqlUtils.createAdminuserAndSystemuser(org, assetsUsers, orgDatas);
 
@@ -88,6 +102,8 @@ public class HuarunTest {
                 SqlUtils.createNodes(org, userGroups.keySet(), rootNodes, rootNodeStartKey);
                 rootNodeStartKey ++;
                 //资产通过资产界面导入
+                //授权资产到节点
+                SqlUtils.addAssetsToNodes(org, orgDatas);
                 //授权资产到节点
                 SqlUtils.addAssetsToNodes(org, orgDatas);
                 //创建授权规则
@@ -147,10 +163,11 @@ public class HuarunTest {
 
     @Test
     public void test11(){
-        long time = System.currentTimeMillis();
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-        String currenTime = format.format(time);
-        System.out.println(currenTime);
+//        long time = System.currentTimeMillis();
+//        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+//        String currenTime = format.format(time);
+//        System.out.println(currenTime);
+        System.out.println(SqlUtils.getCurrentTime());
     }
 
 
@@ -173,6 +190,9 @@ public class HuarunTest {
             String ipStrs = null;
             try {
                 ruleName = excelUtil.readExcelByRowAndCol(assestFrom.getWb(), 1,i, assestFrom.getRuleNum());
+                if(StringUtils.isBlank(ruleName)){
+                    continue;
+                }
                 userNameStrs = excelUtil.readExcelByRowAndCol(assestFrom.getWb(),1,i, assestFrom.getUserNum());
                 hostNameStrs = excelUtil.readExcelByRowAndCol(assestFrom.getWb(),1,i, assestFrom.getHostNameNum());
                 systemUserStr = excelUtil.readExcelByRowAndCol(assestFrom.getWb(), 1,i, assestFrom.getSystemUserNum());
@@ -214,6 +234,8 @@ public class HuarunTest {
         System.out.println("HostNameNum: " + serverInforFrom.getHostNameNum());
         System.out.println("SystemTypeNum: " + serverInforFrom.getSystemTypeNum());
         System.out.println("IpNum: " + serverInforFrom.getIpNum());
+        System.out.println("======================");
+        printCommonInfo(serverDemoFrom);
         System.out.println("init:===================== ");
     }
 
@@ -226,6 +248,7 @@ public class HuarunTest {
 
         initCommonInfo(assestFrom);
         initCommonInfo(serverInforFrom);
+        initCommonInfo(serverDemoFrom);
 
         for(int i = 1; i < 15; i++) {
             String value = excelUtil.readExcelByRowAndCol(assestFrom.getWb(), 1, 1, i);
@@ -257,6 +280,38 @@ public class HuarunTest {
             }
             if(value.trim().equals("系统类型")){
                 serverInforFrom.setSystemTypeNum(i);
+            }
+
+        }
+
+        for(int i = 1; i < 30; i++) {
+            String value = excelUtil.readExcelByRowAndCol(serverDemoFrom.getWb(), 1, 1, i);
+            if(value.trim().equals("IP")){
+                serverDemoFrom.setIpNum(i-1);
+            }
+            if(value.trim().equals("主机名")){
+                serverDemoFrom.setHostNameNum(i-1);
+            }
+            if(value.trim().equals("协议")){
+                serverDemoFrom.setProtocolNum(i-1);
+            }
+            if(value.trim().equals("端口")){
+                serverDemoFrom.setPortNum(i-1);
+            }
+            if(value.trim().equals("系统平台")){
+                serverDemoFrom.setPlatformNum(i-1);
+            }
+            if(value.trim().equals("激活")){
+                serverDemoFrom.setActivateNum(i-1);
+            }
+            if(value.trim().equals("管理用户")){
+                serverDemoFrom.setAdminuserNum(i-1);
+            }
+            if(value.trim().equals("操作系统")){
+                serverDemoFrom.setOsTypeNum(i-1);
+            }
+            if(value.trim().equals("创建者")){
+                serverDemoFrom.setCreatorNum(i-1);
             }
 
         }

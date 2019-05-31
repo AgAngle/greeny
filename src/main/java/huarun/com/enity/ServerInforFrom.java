@@ -8,8 +8,6 @@ import java.io.Serializable;
 
 public class ServerInforFrom extends BaseFrom implements Serializable {
 
-
-
     //设备名称所在的列数
     private Integer hostNameNum = null;
     //系统类型
