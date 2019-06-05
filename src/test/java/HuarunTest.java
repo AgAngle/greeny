@@ -13,45 +13,48 @@ import java.util.*;
 public class HuarunTest {
 
     //文件所在目录
-    public static String fileInputDir = "/Users/chenjianxing/Documents/demo/数据中心.xlsx";
-    //文件所在目录
-    public static String baseFileInputDir = "/Users/chenjianxing/Documents/demo/";
+    public static String baseFileInputDir = "/Users/chenjianxing/Documents/demo-master/";
 
     public static String serverInfoDir = "/Users/chenjianxing/Documents/init_sql/server_info_list.xlsx";
 
-    public static String serverDemoDir = "/Users/chenjianxing/Documents/init_sql/demo.xlsx";
+    public static String serverDemoDir = "/Users/chenjianxing/Documents/init_sql/new_demo.xlsx";
+
+    //public static String userDemoDir = "/Users/chenjianxing/Documents/init_sql/test_user.xlsx";
 
     public AssestFrom assestFrom = new AssestFrom();
     public ServerInforFrom serverInforFrom = new ServerInforFrom();
     public ServerDemoFrom serverDemoFrom = new ServerDemoFrom();
+    //public UserDemoFrom userDemoFrom = new UserDemoFrom();
 
     public static ExcelUtil excelUtil = new ExcelUtil();
 
+    //-------------------------->>>>>>>>>>>>>>>>>>>>
     //需要初始化组织名称
     public String []  orgStrs = new String[]{
-            //"数据中心","华润医商"
-//            "保险","部室"
-            "华创03","华润电力03"
+            "数据中心","系统开发中心"
+//            "保险","部室","华润医商"
+//            "华创07","华润电力07"
     };
-    public Integer rootNodeStartKey = 22;
-
+    public Integer rootNodeStartKey = 4;
+    //-------------------------->>>>>>>>>>>>>>>>>>>>
 
     public Map<String,String> orgs = new TreeMap<String, String>();
     public Map<String,Integer> rootNodes = new TreeMap<String, Integer>();
-    public static AssetsUsers assetsUsers= new AssetsUsers();
+//    public static AssetsUsers assetsUsers= new AssetsUsers();
+    public Map<String, String> adminUserMap = new TreeMap<String, String>();
+    public Map<String, String> nodeMap = new TreeMap<String, String>();
 
 
-
-    static {
-        List<AssetsUser> adminusers = new ArrayList<AssetsUser>();
-        adminusers.add(new AssetsUser("appuser",SystemType.linuxAdminusers));
-        adminusers.add(new AssetsUser("appadmin1",SystemType.WinAdminusers));
-//        List<AssetsUser> systemuser = new ArrayList<AssetsUser>();
-//        systemuser.add(new AssetsUser("appuser","appuser"));
-//        systemuser.add(new AssetsUser("Windows","Windows"));
-        assetsUsers.setAdminusers(adminusers);
-//        assetsUsers.setSystemuser(systemuser);
-    }
+//    static {
+//        List<AssetsUser> adminusers = new ArrayList<AssetsUser>();
+//        adminusers.add(new AssetsUser(SystemType.linuxAdminusers,SystemType.linuxAdminusers));
+//        adminusers.add(new AssetsUser(SystemType.WinAdminusers,SystemType.WinAdminusers));
+////        List<AssetsUser> systemuser = new ArrayList<AssetsUser>();
+////        systemuser.add(new AssetsUser("appuser","appuser"));
+////        systemuser.add(new AssetsUser("Windows","Windows"));
+//        assetsUsers.setAdminusers(adminusers);
+////        assetsUsers.setSystemuser(systemuser);
+//    }
 
 
     @Test
@@ -71,6 +74,8 @@ public class HuarunTest {
                 assestFrom.setWb(excelUtil.loadExcel2007(baseFileInputDir + org.getKey() + ".xlsx"));
                 serverInforFrom.setWb(excelUtil.loadExcel2007(serverInfoDir));
                 serverDemoFrom.setWb(excelUtil.loadExcel2007(serverDemoDir));
+                //userDemoFrom.setWb(excelUtil.loadExcel2007(userDemoDir));
+
 
                 init();
 
@@ -80,18 +85,14 @@ public class HuarunTest {
 
                 Map<String, DataModle> orgDatas = buildDatas(systemUsersSet);
 
-                Map<String, ServerInfoModle> serverInfos = buildServerInfoModle();
+                Map<String, ServerInfoModle> serverInfos = buildServerInfoModle(orgDatas);
 
                 System.out.println(new Gson().toJson(serverInfos));
 
                 Map<String,String> userGroups = new TreeMap<String, String>();
 
-                //将策略组中的资产，导入到对应组织的资产文件中
-                SqlUtils.createOrgAssets(org, orgDatas, serverInfos, serverDemoFrom, assetsUsers, orgNum);
-                orgNum ++ ;
-
                 //创建管理用户和系统用户
-                SqlUtils.createAdminuserAndSystemuser(org, assetsUsers, orgDatas);
+                SqlUtils.createAdminuserAndSystemuser(org, adminUserMap, orgDatas);
 
                 //新建用户组,org_id为空，则为默认组织
                 SqlUtils.createUserGroup(orgDatas.keySet(), userGroups, org);
@@ -100,17 +101,22 @@ public class HuarunTest {
                 //用户授权用户组
                 SqlUtils.addUserToUserGroup(orgDatas, userGroups.keySet(), org);
                 //创建资产节点，org_id为空为默认组织，key表示节点层级
-                SqlUtils.createNodes(org, userGroups.keySet(), rootNodes, rootNodeStartKey);
+                SqlUtils.createNodes(org, userGroups.keySet(), rootNodes, rootNodeStartKey, nodeMap);
                 rootNodeStartKey ++;
                 //资产通过资产界面导入
+
+                //将策略组中的资产，导入到对应组织的资产文件中
+                SqlUtils.createOrgAssets(org, orgDatas, serverInfos, serverDemoFrom, adminUserMap, orgNum, nodeMap);
+                orgNum ++ ;
+
+
                 //授权资产到节点
-                SqlUtils.addAssetsToNodes(org, orgDatas);
-                //授权资产到节点
-                SqlUtils.addAssetsToNodes(org, orgDatas);
-                //授权资产到节点
+                //SqlUtils.addAssetsToNodes(org, orgDatas);
+                //删除根节点的关联关系
                 SqlUtils.deleteRootNodeWithAssets(org, orgDatas);
+
                 //创建授权规则
-                SqlUtils.createAssetPermission(org, orgDatas, assetsUsers);
+                SqlUtils.createAssetPermission(org, orgDatas);
 
             }
 
@@ -122,7 +128,7 @@ public class HuarunTest {
         System.out.println("文件创建完成！");
     }
 
-    private Map<String,ServerInfoModle> buildServerInfoModle() {
+    private Map<String,ServerInfoModle> buildServerInfoModle(Map<String, DataModle> orgDatas) {
 
         Map<String, ServerInfoModle> serverInfos = new TreeMap<String, ServerInfoModle>();
 
@@ -139,7 +145,6 @@ public class HuarunTest {
                 ip = excelUtil.readExcelByRowAndCol(serverInforFrom.getWb(),1,i, serverInforFrom.getIpNum());
                 systemType = excelUtil.readExcelByRowAndCol(serverInforFrom.getWb(),1,i, serverInforFrom.getSystemTypeNum());
 
-//
                 serverInfo.setHostName(hostName);
                 serverInfo.setIp(ip);
                 serverInfo.setSystemType(systemType);
@@ -239,6 +244,17 @@ public class HuarunTest {
         System.out.println("IpNum: " + serverInforFrom.getIpNum());
         System.out.println("======================");
         printCommonInfo(serverDemoFrom);
+        System.out.println("======================");
+//        System.out.println("NameNum: " + userDemoFrom.getNameNum());
+//        System.out.println("UserNameNum: " + userDemoFrom.getUserNameNum());
+//        System.out.println("MailNum: " + userDemoFrom.getMailNum());
+//        System.out.println("GroupNum: " + userDemoFrom.getUserGroupNum());
+//        System.out.println("RoleNum: " + userDemoFrom.getRoleNum());
+//        System.out.println("MFANum: " + userDemoFrom.getMFANum());
+//        System.out.println("ActivateNum: " + userDemoFrom.getActivateNum());
+//        System.out.println("OverTimeNum: " + userDemoFrom.getOverTimeNum());
+//        System.out.println("======================");
+//        printCommonInfo(userDemoFrom);
         System.out.println("init:===================== ");
     }
 
@@ -252,6 +268,7 @@ public class HuarunTest {
         initCommonInfo(assestFrom);
         initCommonInfo(serverInforFrom);
         initCommonInfo(serverDemoFrom);
+//        initCommonInfo(userDemoFrom);
 
         for(int i = 1; i < 15; i++) {
             String value = excelUtil.readExcelByRowAndCol(assestFrom.getWb(), 1, 1, i);
@@ -287,7 +304,7 @@ public class HuarunTest {
 
         }
 
-        for(int i = 1; i < 30; i++) {
+        for(int i = 1; i < 15; i++) {
             String value = excelUtil.readExcelByRowAndCol(serverDemoFrom.getWb(), 1, 1, i);
             if(value.trim().equals("IP")){
                 serverDemoFrom.setIpNum(i-1);
@@ -310,14 +327,42 @@ public class HuarunTest {
             if(value.trim().equals("管理用户")){
                 serverDemoFrom.setAdminuserNum(i-1);
             }
-            if(value.trim().equals("操作系统")){
-                serverDemoFrom.setOsTypeNum(i-1);
+            if(value.trim().equals("节点管理")){
+                serverDemoFrom.setNodesNum(i-1);
             }
-            if(value.trim().equals("创建者")){
-                serverDemoFrom.setCreatorNum(i-1);
+            if(value.trim().equals("标签管理")){
+                serverDemoFrom.setTagNum(i-1);
             }
 
         }
+
+//        for(int i = 1; i < 15; i++) {
+//            String value = excelUtil.readExcelByRowAndCol(userDemoFrom.getWb(), 1, 1, i);
+//            if(value.trim().equals("名称")){
+//                userDemoFrom.setNameNum(i);
+//            }
+//            if(value.trim().equals("用户名")){
+//                userDemoFrom.setUserNameNum(i);
+//            }
+//            if(value.trim().equals("邮件")){
+//                userDemoFrom.setMailNum(i);
+//            }
+//            if(value.trim().equals("用户组")){
+//                userDemoFrom.setUserGroupNum(i);
+//            }
+//            if(value.trim().equals("角色")){
+//                userDemoFrom.setRoleNum(i);
+//            }
+//            if(value.trim().equals("MFA")){
+//                userDemoFrom.setMFANum(i);
+//            }
+//            if(value.trim().equals("有效")){
+//                userDemoFrom.setActivateNum(i);
+//            }
+//            if(value.trim().equals("失效日期")){
+//                userDemoFrom.setOverTimeNum(i);
+//            }
+//        }
 
     }
 

@@ -156,7 +156,7 @@ public class SqlUtils {
         return file;
     }
 
-    public static void createNodes(Map.Entry<String, String> org, Set<String> nodes, Map<String, Integer> rootNodes, Integer rootNodeStartKey) {
+    public static void createNodes(Map.Entry<String, String> org, Set<String> nodes, Map<String, Integer> rootNodes, Integer rootNodeStartKey, Map<String, String> nodeMap) {
 
         File createNodesSql = getFile(org.getKey(), "5_createNode.sql");
         FileOutputStream fileOut = null;
@@ -180,6 +180,8 @@ public class SqlUtils {
                         "VALUES ('" + uuid1.toString().replace("-","") + "','" + rootNodeStartKey + ":" + nodeStartKey++ + "','" + node + "',0,'" + getCurrentTime() + "','" + org.getValue() + "') ;";
                 fileOut.write(nodeSql.getBytes());
                 fileOut.write("\n".getBytes());
+
+                nodeMap.put(node, "'" + uuid1.toString() + "'");
             }
 
         } catch (Exception e) {
@@ -191,7 +193,7 @@ public class SqlUtils {
 
     }
 
-    public static void createAdminuserAndSystemuser(Map.Entry<String, String> org, AssetsUsers assetsUsers, Map<String, DataModle> orgDatas) {
+    public static void createAdminuserAndSystemuser(Map.Entry<String, String> org, Map<String,String> adminUserMap, Map<String, DataModle> orgDatas) {
 
         File createAdminuserAndSystemuserSql = getFile(org.getKey(), "1_createAdminuserAndSystemuserSql.sql");
         FileOutputStream fileOut = null;
@@ -200,14 +202,24 @@ public class SqlUtils {
 
             fileOut = new FileOutputStream(createAdminuserAndSystemuserSql);
 
-            for (AssetsUser adminuser:
-                    assetsUsers.getAdminusers()) {
-                UUID uuid = UUID.randomUUID();
+//            for (AssetsUser adminuser:
+//                    assetsUsers.getAdminusers()) {
+                UUID winAdminUseruuid = UUID.randomUUID();
                 String adminuserSql = "INSERT INTO assets_adminuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,become,become_method,become_user,`_become_pass`,org_id) " +
-                        "VALUES ('" + uuid.toString().replace("-","") + "','" + adminuser.getName() + "','" + adminuser.getUseranme() + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + org.getValue() + "') ;";
+                        "VALUES ('" + winAdminUseruuid.toString().replace("-","") + "','" + SystemType.WinAdminusers + "','" + SystemType.WinAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + org.getValue() + "') ;";
                 fileOut.write(adminuserSql.getBytes());
                 fileOut.write("\n".getBytes());
-            }
+
+                adminUserMap.put(SystemType.WinAdminusers, winAdminUseruuid.toString());
+
+                UUID linuxAdminUseruuid = UUID.randomUUID();
+                adminuserSql = "INSERT INTO assets_adminuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,become,become_method,become_user,`_become_pass`,org_id) " +
+                        "VALUES ('" + linuxAdminUseruuid.toString().replace("-","") + "','" + SystemType.LinuxAdminusers + "','" + SystemType.LinuxAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + org.getValue() + "') ;";
+                fileOut.write(adminuserSql.getBytes());
+                fileOut.write("\n".getBytes());
+
+                adminUserMap.put(SystemType.LinuxAdminusers, linuxAdminUseruuid.toString());
+//            }
 
 
             for (String userGroup:
@@ -216,13 +228,18 @@ public class SqlUtils {
                 for (String systemuser:
                         systemUsers) {
                     UUID uuid = UUID.randomUUID();
-                    String systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
-                            "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'ssh',0,'/bin/whoami','/bin/bash','manual','" + org.getValue() + "') ;";
+                    String systemuseSql = null;
+                    if(systemuser.contains("admin")){
+                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
+                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'rdp',0,'/bin/whoami','/bin/bash','manual','" + org.getValue() + "') ;";
+                    } else {
+                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
+                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'ssh',0,'/bin/whoami','/bin/bash','manual','" + org.getValue() + "') ;";
+                    }
                     fileOut.write(systemuseSql.getBytes());
                     fileOut.write("\n".getBytes());
                 }
             }
-
 
         } catch (Exception e) {
             System.out.println("createAdminuserAndSystemuser fail..");
@@ -262,7 +279,7 @@ public class SqlUtils {
         }
     }
 
-    public static void createAssetPermission(Map.Entry<String, String> org, Map<String, DataModle> orgDatas, AssetsUsers assetsUsers) {
+    public static void createAssetPermission(Map.Entry<String, String> org, Map<String, DataModle> orgDatas) {
 
         File createAssetPermissionSql = getFile(org.getKey(), "8_createAssetPermissionSql.sql");
 
@@ -334,13 +351,23 @@ public class SqlUtils {
 
 
     public static void createOrgAssets(Map.Entry<String, String> org, Map<String, DataModle> orgDatas,
-                                       Map<String, ServerInfoModle> serverInfos, ServerDemoFrom serverDemoFrom, AssetsUsers assetsUsers, int orgNum) {
+                                       Map<String, ServerInfoModle> serverInfos, ServerDemoFrom serverDemoFrom, Map<String, String> adminUserMap, int orgNum, Map<String, String> nodeMap) {
 
         Set<String> orgHostNames = new TreeSet<String>();
 
-        for (DataModle nodeInfo:
-                orgDatas.values()) {
-            orgHostNames.addAll(nodeInfo.getHostNames());
+        for (Map.Entry<String,DataModle> nodeData:
+                orgDatas.entrySet()) {
+
+            orgHostNames.addAll(nodeData.getValue().getHostNames());
+
+            for (String hosName :
+                    nodeData.getValue().getHostNames()) {
+                ServerInfoModle serverInfoModle = serverInfos.get(hosName);
+                if(null == serverInfoModle){
+                    continue;
+                }
+                serverInfos.get(hosName).getNodeIds().add(nodeMap.get(nodeData.getKey()));
+            }
         }
 
         int rowIdex = 1;
@@ -348,15 +375,15 @@ public class SqlUtils {
              orgHostNames) {
 
             ServerInfoModle serverInfoModle = serverInfos.get(hostName);
-            if(null == serverInfoModle){
+            if(null == serverInfoModle || StringUtils.isBlank(serverInfoModle.getIp())){
                 continue;
             }
 
-            BuildWb(serverDemoFrom, serverInfoModle, rowIdex);
+            BuildWb(serverDemoFrom, serverInfoModle, rowIdex, adminUserMap);
             writeToExcel(org.getKey(), serverDemoFrom.getWb(), orgNum);
             rowIdex ++ ;
         }
-        System.out.println("rowIdex: " + rowIdex);
+        //System.out.println("rowIdex: " + rowIdex);
     }
 
     public static void writeToExcel(String org, XSSFWorkbook wb, int orgNum){
@@ -377,7 +404,7 @@ public class SqlUtils {
             }
         }
     }
-    public static void BuildWb(ServerDemoFrom serverDemoFrom, ServerInfoModle serverInfoModle, int rowIdex){
+    public static void BuildWb(ServerDemoFrom serverDemoFrom, ServerInfoModle serverInfoModle, int rowIdex, Map<String, String> adminUserMap){
 
         XSSFSheet firstSheet = serverDemoFrom.getFirstSheet();
 
@@ -402,10 +429,8 @@ public class SqlUtils {
                     .setCellValue(SystemType.WINDOWS);
 
             row.createCell(serverDemoFrom.getAdminuserNum())
-                    .setCellValue(SystemType.WinAdminusers);
+                    .setCellValue(adminUserMap.get(SystemType.WinAdminusers));
 
-            row.createCell(serverDemoFrom.getOsTypeNum())
-                    .setCellValue(SystemType.WINDOWS);
 
         } else {
 
@@ -417,24 +442,18 @@ public class SqlUtils {
 
 
             row.createCell(serverDemoFrom.getAdminuserNum())
-                    .setCellValue(SystemType.linuxAdminusers);
+                    .setCellValue(adminUserMap.get(SystemType.LinuxAdminusers));
 
             if(serverInfoModle.getSystemType().toLowerCase().contains("linux")){
 
                 row.createCell(serverDemoFrom.getPlatformNum())
                         .setCellValue(SystemType.LINUX);
-                row.createCell(serverDemoFrom.getOsTypeNum())
-                        .setCellValue(SystemType.LINUX);
 
             } else if(serverInfoModle.getSystemType().toLowerCase().contains("unix")){
                 row.createCell(serverDemoFrom.getPlatformNum())
                         .setCellValue(SystemType.UNIX);
-                row.createCell(serverDemoFrom.getOsTypeNum())
-                        .setCellValue(SystemType.UNIX);
             } else {
                 row.createCell(serverDemoFrom.getPlatformNum())
-                        .setCellValue(SystemType.OTHER);
-                row.createCell(serverDemoFrom.getOsTypeNum())
                         .setCellValue(SystemType.OTHER);
             }
         }
@@ -442,8 +461,11 @@ public class SqlUtils {
         row.createCell(serverDemoFrom.getActivateNum())
                 .setCellValue("TRUE");
 
-        row.createCell(serverDemoFrom.getCreatorNum())
-                .setCellValue("管理员");
+        row.createCell(serverDemoFrom.getNodesNum())
+                .setCellValue(serverInfoModle.getNodeIds().toString());
+
+        row.createCell(serverDemoFrom.getTagNum())
+                .setCellValue("[]");
 
     }
 

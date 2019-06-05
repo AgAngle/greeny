@@ -1,9 +1,29 @@
 package huarun.com.enity;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+
 public class ServerInfoModle {
     private String hostName;
     private String ip;
     private String systemType;
+
+    private Set<String> nodeIds;
+
+
+    public ServerInfoModle() {
+        nodeIds = new TreeSet<String>();
+    }
+
+    public Set<String> getNodeIds() {
+        return nodeIds;
+    }
+
+    public void setNodeIds(Set<String> nodeIds) {
+        this.nodeIds = nodeIds;
+    }
 
     public String getHostName() {
         return hostName;

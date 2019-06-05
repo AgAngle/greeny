@@ -3,30 +3,38 @@ package huarun.com.enity;
 public class ServerDemoFrom extends BaseFrom {
 
     //IP所在的列数
-    private Integer ipNum = null;
+    private Integer ipNum;
 
-    private Integer hostNameNum = null;
+    private Integer hostNameNum;
 
-    private Integer platformNum = null;
+    private Integer platformNum;
 
-    private Integer activateNum = null;
+    private Integer activateNum;
 
-    private Integer adminuserNum = null;
+    private Integer adminuserNum;
 
-    private Integer creatorNum = null;
+    private Integer portNum;
 
-    private Integer portNum = null;
+    private Integer protocolNum;
 
-    private Integer protocolNum = null;
+    private Integer nodesNum;
 
-    private Integer osTypeNum = null;
+    private Integer tagNum;
 
-    public Integer getOsTypeNum() {
-        return osTypeNum;
+    public Integer getNodesNum() {
+        return nodesNum;
     }
 
-    public void setOsTypeNum(Integer osTypeNum) {
-        this.osTypeNum = osTypeNum;
+    public void setNodesNum(Integer nodesNum) {
+        this.nodesNum = nodesNum;
+    }
+
+    public Integer getTagNum() {
+        return tagNum;
+    }
+
+    public void setTagNum(Integer tagNum) {
+        this.tagNum = tagNum;
     }
 
     public Integer getProtocolNum() {
@@ -85,11 +93,4 @@ public class ServerDemoFrom extends BaseFrom {
         this.adminuserNum = adminuserNum;
     }
 
-    public Integer getCreatorNum() {
-        return creatorNum;
-    }
-
-    public void setCreatorNum(Integer creatorNum) {
-        this.creatorNum = creatorNum;
-    }
 }
