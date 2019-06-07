@@ -17,33 +17,36 @@ public class SqlUtils {
 
     public static final String basePath = "/Users/chenjianxing/Documents/init_sql/";
 
-    public static void createOrg(Map<String,String> orgs, String [] orgStrs){
-        File orgCreateSql = new File(basePath + "01_orgCreateSql.sql");
+    public static String createOrg(String org) throws Exception {
+
+        File orgCreateSql = getFile(org, "1_userGroupSql.sql");
         FileOutputStream fileOut = null;
         try {
 
             fileOut = new FileOutputStream(orgCreateSql);
 
-            for (int i = 0; i < orgStrs.length; i++){
+//            for (int i = 0; i < orgStrs.length; i++){
                 UUID uuid = UUID.randomUUID();
-                orgs.put(orgStrs[i], uuid.toString());
+//                orgs.put(org, uuid.toString());
                 String sql = "INSERT INTO orgs_organization (id,name,created_by,date_created,comment) " +
-                        "VALUES ('" + uuid.toString().replace("-", "") + "','" + orgStrs[i] + "','Administrator','2019-05-23 07:56:34.458','test');";
+                        "VALUES ('" + uuid.toString().replace("-", "") + "','" + org + "','Administrator','" + getCurrentTime() + "','test');";
                 fileOut.write(sql.getBytes());
                 fileOut.write("\n".getBytes());
-            }
+                return uuid.toString();
+//            }
 
         } catch (Exception e) {
             System.out.println("general orgCreateSql fail..");
             e.printStackTrace();
+            throw e;
         }finally {
             closeOutPutStream(fileOut);
         }
     }
 
-    public static void createUserGroup(Set<String> userGroups, Map<String, String> userGroupMap, Map.Entry<String, String> org) {
+    public static void createUserGroup(Set<String> userGroups, Map<String, String> userGroupMap,  String orgName, String orgId) {
 
-        File createUserGroupSql = getFile(org.getKey(), "2_userGroupSql.sql");
+        File createUserGroupSql = getFile(orgName, "3_userGroupSql.sql");
         FileOutputStream fileOut = null;
 
         try {
@@ -54,7 +57,7 @@ public class SqlUtils {
                 UUID uuid = UUID.randomUUID();
                 userGroupMap.put(userGroup, uuid.toString());
                 String sql = "INSERT INTO users_usergroup (id,name,comment,date_created,created_by,org_id) " +
-                        "VALUES ('" + uuid.toString().replace("-","") + "','" + userGroup + "','','" + getCurrentTime() + "','Administrator','" + org.getValue() + "') ;";
+                        "VALUES ('" + uuid.toString().replace("-","") + "','" + userGroup + "','','" + getCurrentTime() + "','Administrator','" + orgId + "') ;";
                 fileOut.write(sql.getBytes());
                 fileOut.write("\n".getBytes());
             }
@@ -76,9 +79,9 @@ public class SqlUtils {
         return currenTime;
     }
 
-    public static void addUserToOrg(Collection<DataModle> datas, Map.Entry<String, String> org) {
+    public static void addUserToOrg(Collection<DataModle> datas, String orgName, String orgId) {
 
-        File addUserToOrgSql = getFile(org.getKey(), "3_addUserToOrgSql.sql");
+        File addUserToOrgSql = getFile(orgName, "06_addUserToOrgSql.sql");
         FileOutputStream fileOut = null;
 
         List<String> userNames = new ArrayList<String>();
@@ -94,7 +97,7 @@ public class SqlUtils {
             for (String userName :
                     userNames) {
                 String sql = "INSERT INTO orgs_organization_users(user_id, organization_id) " +
-                        "select u.id,g.id from users_user u, orgs_organization g where u.username='" + userName + "' and g.name = '" + org.getKey() + "';";
+                        "select u.id,g.id from users_user u, orgs_organization g where u.username='" + userName + "' and g.name = '" + orgId + "';";
                 fileOut.write(sql.getBytes());
                 fileOut.write("\n".getBytes());
             }
@@ -115,9 +118,9 @@ public class SqlUtils {
         }
     }
 
-    public static void addUserToUserGroup(Map<String,DataModle> datas, Set<String> userGroups, Map.Entry<String, String> org) {
+    public static void addUserToUserGroup(Map<String,DataModle> datas, Set<String> userGroups, String orgName, String orgId) {
 
-        File orgCreateSql = getFile(org.getKey(), "4_addUserToUserGroup.sql");
+        File orgCreateSql = getFile(orgName, "07_addUserToUserGroup.sql");
         FileOutputStream fileOut = null;
 
         List<String> userNames = new ArrayList<String>();
@@ -133,7 +136,7 @@ public class SqlUtils {
                      datas.get(userGroup).getUserNames()) {
 
                     String sql = "INSERT INTO users_user_groups(user_id, usergroup_id) " +
-                            "select u.id,g.id from users_user u, users_usergroup g where u.username='" + userName + "' and g.name = '" + userGroup + "' and g.org_id = '" + org.getValue() + "';";
+                            "select u.id,g.id from users_user u, users_usergroup g where u.username='" + userName + "' and g.name = '" + userGroup + "' and g.org_id = '" + orgId + "';";
                     fileOut.write(sql.getBytes());
                     fileOut.write("\n".getBytes());
                 }
@@ -156,9 +159,9 @@ public class SqlUtils {
         return file;
     }
 
-    public static void createNodes(Map.Entry<String, String> org, Set<String> nodes, Map<String, Integer> rootNodes, Integer rootNodeStartKey, Map<String, String> nodeMap) {
+    public static void createNodes(Set<String> nodes, Map<String, Integer> rootNodes, Integer rootNodeStartKey, Map<String, String> nodeMap, String orgName, String orgId) {
 
-        File createNodesSql = getFile(org.getKey(), "5_createNode.sql");
+        File createNodesSql = getFile(orgName, "4_createNode.sql");
         FileOutputStream fileOut = null;
 
         try {
@@ -167,8 +170,8 @@ public class SqlUtils {
             fileOut = new FileOutputStream(createNodesSql);
 
             String rootNodeSql = "INSERT INTO assets_node (id,`key`,value,child_mark,date_create,org_id) " +
-                    "VALUES ('" + uuid.toString().replace("-","") + "','" + rootNodeStartKey + "','" + org.getKey() + "'," + nodes.size() + ",'" + getCurrentTime() + "','" + org.getValue() + "') ;";
-            rootNodes.put(org.getKey(), rootNodeStartKey);
+                    "VALUES ('" + uuid.toString().replace("-","") + "','" + rootNodeStartKey + "','" + orgId + "'," + nodes.size() + ",'" + getCurrentTime() + "','" + orgId + "') ;";
+            rootNodes.put(orgName, rootNodeStartKey);
             fileOut.write(rootNodeSql.getBytes());
             fileOut.write("\n".getBytes());
 
@@ -177,7 +180,7 @@ public class SqlUtils {
                     nodes) {
                 UUID uuid1 = UUID.randomUUID();
                 String nodeSql = "INSERT INTO assets_node (id,`key`,value,child_mark,date_create,org_id) " +
-                        "VALUES ('" + uuid1.toString().replace("-","") + "','" + rootNodeStartKey + ":" + nodeStartKey++ + "','" + node + "',0,'" + getCurrentTime() + "','" + org.getValue() + "') ;";
+                        "VALUES ('" + uuid1.toString().replace("-","") + "','" + rootNodeStartKey + ":" + nodeStartKey++ + "','" + node + "',0,'" + getCurrentTime() + "','" + orgId + "') ;";
                 fileOut.write(nodeSql.getBytes());
                 fileOut.write("\n".getBytes());
 
@@ -193,9 +196,9 @@ public class SqlUtils {
 
     }
 
-    public static void createAdminuserAndSystemuser(Map.Entry<String, String> org, Map<String,String> adminUserMap, Map<String, DataModle> orgDatas) {
+    public static void createAdminuserAndSystemuser(String orgName, String orgId, Map<String,String> adminUserMap, Map<String, DataModle> orgDatas) {
 
-        File createAdminuserAndSystemuserSql = getFile(org.getKey(), "1_createAdminuserAndSystemuserSql.sql");
+        File createAdminuserAndSystemuserSql = getFile(orgName, "2_createAdminuserAndSystemuserSql.sql");
         FileOutputStream fileOut = null;
 
         try {
@@ -206,7 +209,7 @@ public class SqlUtils {
 //                    assetsUsers.getAdminusers()) {
                 UUID winAdminUseruuid = UUID.randomUUID();
                 String adminuserSql = "INSERT INTO assets_adminuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,become,become_method,become_user,`_become_pass`,org_id) " +
-                        "VALUES ('" + winAdminUseruuid.toString().replace("-","") + "','" + SystemType.WinAdminusers + "','" + SystemType.WinAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + org.getValue() + "') ;";
+                        "VALUES ('" + winAdminUseruuid.toString().replace("-","") + "','" + SystemType.WinAdminusers + "','" + SystemType.WinAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + orgId + "') ;";
                 fileOut.write(adminuserSql.getBytes());
                 fileOut.write("\n".getBytes());
 
@@ -214,7 +217,7 @@ public class SqlUtils {
 
                 UUID linuxAdminUseruuid = UUID.randomUUID();
                 adminuserSql = "INSERT INTO assets_adminuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,become,become_method,become_user,`_become_pass`,org_id) " +
-                        "VALUES ('" + linuxAdminUseruuid.toString().replace("-","") + "','" + SystemType.LinuxAdminusers + "','" + SystemType.LinuxAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + org.getValue() + "') ;";
+                        "VALUES ('" + linuxAdminUseruuid.toString().replace("-","") + "','" + SystemType.LinuxAdminusers + "','" + SystemType.LinuxAdminusers + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',1,'sudo','root','','" + orgId + "') ;";
                 fileOut.write(adminuserSql.getBytes());
                 fileOut.write("\n".getBytes());
 
@@ -222,24 +225,24 @@ public class SqlUtils {
 //            }
 
 
-            for (String userGroup:
-                    orgDatas.keySet()) {
-                List<String> systemUsers = orgDatas.get(userGroup).getSystemUsers();
-                for (String systemuser:
-                        systemUsers) {
-                    UUID uuid = UUID.randomUUID();
-                    String systemuseSql = null;
-                    if(systemuser.contains("admin")){
-                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
-                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'rdp',0,'/bin/whoami','/bin/bash','manual','" + org.getValue() + "') ;";
-                    } else {
-                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
-                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'ssh',0,'/bin/whoami','/bin/bash','manual','" + org.getValue() + "') ;";
-                    }
-                    fileOut.write(systemuseSql.getBytes());
-                    fileOut.write("\n".getBytes());
-                }
-            }
+//            for (String userGroup:
+//                    orgDatas.keySet()) {
+//                List<String> systemUsers = orgDatas.get(userGroup).getSystemUsers();
+//                for (String systemuser:
+//                        systemUsers) {
+//                    UUID uuid = UUID.randomUUID();
+//                    String systemuseSql = null;
+//                    if(systemuser.contains("admin")){
+//                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
+//                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'rdp',0,'/bin/whoami','/bin/bash','manual','" + orgId + "') ;";
+//                    } else {
+//                        systemuseSql = "INSERT IGNORE INTO assets_systemuser (id,name,username,`_password`,`_public_key`,comment,date_created,date_updated,created_by,priority,protocol,auto_push,sudo,shell,login_mode,org_id) " +
+//                                "VALUES ('" + uuid.toString().replace("-","") + "','" + systemuser + "','" + systemuser + "',NULL,'','','" + getCurrentTime() + "','" + getCurrentTime() + "','Administrator',20,'ssh',0,'/bin/whoami','/bin/bash','manual','" + orgId + "') ;";
+//                    }
+//                    fileOut.write(systemuseSql.getBytes());
+//                    fileOut.write("\n".getBytes());
+//                }
+//            }
 
         } catch (Exception e) {
             System.out.println("createAdminuserAndSystemuser fail..");
@@ -279,9 +282,9 @@ public class SqlUtils {
         }
     }
 
-    public static void createAssetPermission(Map.Entry<String, String> org, Map<String, DataModle> orgDatas) {
+    public static void createAssetPermission(Map<String, DataModle> orgDatas, String orgName , String orgId) {
 
-        File createAssetPermissionSql = getFile(org.getKey(), "8_createAssetPermissionSql.sql");
+        File createAssetPermissionSql = getFile(orgName, "8_createAssetPermissionSql.sql");
 
         FileOutputStream fileOut = null;
 
@@ -293,26 +296,26 @@ public class SqlUtils {
                 String rule = entry.getKey();
                 UUID uuid = UUID.randomUUID();
                 String sql = "INSERT INTO perms_assetpermission (id,name,is_active,date_start,date_expired,created_by,date_created,comment,org_id) " +
-                        "VALUES ('" + uuid.toString().replace("-","") + "','" + rule + "',1,'" + getCurrentTime() + "','" + "2100-02-09 00:00:00" + "','Administrator','" + getCurrentTime() + "','','" + org.getValue() + "');";
+                        "VALUES ('" + uuid.toString().replace("-","") + "','" + rule + "',1,'" + getCurrentTime() + "','" + "2100-02-09 00:00:00" + "','Administrator','" + getCurrentTime() + "','','" + orgId + "');";
                 fileOut.write(sql.getBytes());
                 fileOut.write("\n".getBytes());
 
                 //绑定动作
                 String sql1 = "INSERT INTO perms_assetpermission_actions(assetpermission_id,action_id)  " +
-                        "select u.id,g.id from perms_assetpermission u, perms_action g where u.name='" + rule + "' and u.org_id = '" + org.getValue() + "' and g.name = 'all';";
+                        "select u.id,g.id from perms_assetpermission u, perms_action g where u.name='" + rule + "' and u.org_id = '" + orgId + "' and g.name = 'all';";
                 fileOut.write(sql1.getBytes());
                 fileOut.write("\n".getBytes());
 
 
                 //绑定节点
                 String sql2 = "INSERT INTO perms_assetpermission_nodes (assetpermission_id,node_id) " +
-                        "select u.id,g.id from perms_assetpermission u, assets_node g where u.name='" + rule + "' and u.org_id = '" + org.getValue() + "'  and g.value = '" + rule + "' and g.org_id = '" + org.getValue() + "' ;";
+                        "select u.id,g.id from perms_assetpermission u, assets_node g where u.name='" + rule + "' and u.org_id = '" + orgId + "'  and g.value = '" + rule + "' and g.org_id = '" + orgId + "' ;";
                 fileOut.write(sql2.getBytes());
                 fileOut.write("\n".getBytes());
 
                 //绑定用户组
                 String sql3 = "INSERT INTO perms_assetpermission_user_groups (assetpermission_id,usergroup_id) " +
-                        "select u.id,g.id from perms_assetpermission u, users_usergroup g where u.name='" + rule + "' and u.org_id = '" + org.getValue() + "' and g.name = '" + rule + "' and g.org_id = '" + org.getValue() +"' ;";
+                        "select u.id,g.id from perms_assetpermission u, users_usergroup g where u.name='" + rule + "' and u.org_id = '" + orgId + "' and g.name = '" + rule + "' and g.org_id = '" + orgId +"' ;";
                 fileOut.write(sql3.getBytes());
                 fileOut.write("\n".getBytes());
 
@@ -320,13 +323,13 @@ public class SqlUtils {
                         entry.getValue().getSystemUsers()) {
                     //授权规则绑定系统用户
                     String sql4 ="INSERT INTO perms_assetpermission_system_users (assetpermission_id,systemuser_id) " +
-                            "select u.id,g.id from perms_assetpermission u, assets_systemuser g where u.name='" + rule + "' and u.org_id = '" + org.getValue() + "'  and g.name = '" + systemuser + "' and g.org_id = '" + org.getValue() + "' ;";
+                            "select u.id,g.id from perms_assetpermission u, assets_systemuser g where u.name='" + rule + "' and u.org_id = '" + orgId + "'  and g.name = '" + systemuser + "' and g.org_id = '" + orgId + "' ;";
                     fileOut.write(sql4.getBytes());
                     fileOut.write("\n".getBytes());
 
                     //资产节点绑定系统用户
                     String sql5 = "INSERT INTO assets_systemuser_nodes (systemuser_id,node_id) " +
-                            "select u.id,g.id from assets_systemuser u, assets_node g where u.name='" + systemuser + "' and g.value = '" + rule + "' and u.org_id = '" + org.getValue() + "' and g.org_id = '" + org.getValue() + "';";
+                            "select u.id,g.id from assets_systemuser u, assets_node g where u.name='" + systemuser + "' and g.value = '" + rule + "' and u.org_id = '" + orgId + "' and g.org_id = '" + orgId + "';";
                     fileOut.write(sql5.getBytes());
                     fileOut.write("\n".getBytes());
 
@@ -334,7 +337,7 @@ public class SqlUtils {
                             entry.getValue().getHostNames()) {
                         //资产绑定系统用户
                         String sql6 = "INSERT IGNORE INTO assets_systemuser_assets (systemuser_id,asset_id) " +
-                                "select u.id,g.id from assets_systemuser u, assets_asset g where u.name='" + systemuser + "' and g.hostname = '" + hostName + "' and u.org_id = '" + org.getValue() + "' and g.org_id = '" + org.getValue() + "';";
+                                "select u.id,g.id from assets_systemuser u, assets_asset g where u.name='" + systemuser + "' and g.hostname = '" + hostName + "' and u.org_id = '" + orgId + "' and g.org_id = '" + orgId + "';";
                         fileOut.write(sql6.getBytes());
                         fileOut.write("\n".getBytes());
                     }
@@ -350,8 +353,8 @@ public class SqlUtils {
     }
 
 
-    public static void createOrgAssets(Map.Entry<String, String> org, Map<String, DataModle> orgDatas,
-                                       Map<String, ServerInfoModle> serverInfos, ServerDemoFrom serverDemoFrom, Map<String, String> adminUserMap, int orgNum, Map<String, String> nodeMap) {
+    public static void createOrgAssets(Map<String, DataModle> orgDatas,
+                                       Map<String, ServerInfoModle> serverInfos, ServerDemoFrom serverDemoFrom, Map<String, String> adminUserMap, int orgNum, Map<String, String> nodeMap, String orgName) {
 
         Set<String> orgHostNames = new TreeSet<String>();
 
@@ -380,7 +383,7 @@ public class SqlUtils {
             }
 
             BuildWb(serverDemoFrom, serverInfoModle, rowIdex, adminUserMap);
-            writeToExcel(org.getKey(), serverDemoFrom.getWb(), orgNum);
+            writeToExcel(orgName, serverDemoFrom.getWb(), orgNum);
             rowIdex ++ ;
         }
         //System.out.println("rowIdex: " + rowIdex);
@@ -469,9 +472,9 @@ public class SqlUtils {
 
     }
 
-    public static void deleteRootNodeWithAssets(Map.Entry<String,String> org, Map<String,DataModle> orgDatas) {
+    public static void deleteRootNodeWithAssets(Map<String,DataModle> orgDatas, String orgName, String orgId) {
 
-        File deleteRootNodeWithAssetsSql = getFile(org.getKey(), "7_deleteRootNodeWithAssetsSql.sql");
+        File deleteRootNodeWithAssetsSql = getFile(orgName, "5_deleteRootNodeWithAssetsSql.sql");
 
         FileOutputStream fileOut = null;
 
@@ -489,9 +492,9 @@ public class SqlUtils {
                             nodeData.getValue().getHostNames()) {
                         String sql = "DELETE FROM assets_asset_nodes " +
                                 "WHERE asset_id = ( " +
-                                "SELECT id FROM assets_asset WHERE hostname = '" + hostName + "' and org_id = '" + org.getValue() + "'" +
+                                "SELECT id FROM assets_asset WHERE hostname = '" + hostName + "' and org_id = '" + orgId + "'" +
                                 ") and node_id = (" +
-                                "SELECT id FROM assets_node WHERE  value = '" + org.getKey() + "' and org_id = '" + org.getValue() + "'" +
+                                "SELECT id FROM assets_node WHERE  value = '" + orgId + "' and org_id = '" + orgId + "'" +
                                 ");";
                         fileOut.write(sql.getBytes());
                         fileOut.write("\n".getBytes());
@@ -509,4 +512,73 @@ public class SqlUtils {
         }
 
     }
+
+    public static void createUserImportFile(UserDemoFrom userDemoFrom, Map<String, UserInfoModle> userInfos) {
+
+        Integer rowIdex = 1;
+        for (UserInfoModle userInfo:
+             userInfos.values()) {
+
+            BuildUserWb(userDemoFrom, userInfo, rowIdex);
+            writeToUserExcel(userDemoFrom.getWb());
+            rowIdex ++ ;
+        }
+
+    }
+
+    public static void BuildUserWb(UserDemoFrom userDemoFrom, UserInfoModle userInfoModle, int rowIdex){
+
+        XSSFSheet firstSheet = userDemoFrom.getFirstSheet();
+
+        XSSFRow row = firstSheet.createRow(rowIdex);
+
+
+        row.createCell(userDemoFrom.getNameNum())
+                .setCellValue(userInfoModle.getUserName());
+
+        row.createCell(userDemoFrom.getUserNameNum())
+                .setCellValue(userInfoModle.getLoginUser());
+
+        row.createCell(userDemoFrom.getMailNum())
+                .setCellValue(userInfoModle.getMail());
+
+        row.createCell(userDemoFrom.getUserGroupNum())
+                .setCellValue("[]");
+
+        row.createCell(userDemoFrom.getRoleNum())
+                .setCellValue("User");
+
+        row.createCell(userDemoFrom.getMFANum())
+                .setCellValue("0");
+
+        row.createCell(userDemoFrom.getActivateNum())
+                .setCellValue("TRUE");
+
+        row.createCell(userDemoFrom.getOverTimeNum())
+                .setCellValue(userInfoModle.getOverTime() + ":00 +0800");
+
+    }
+
+
+    public static void writeToUserExcel(XSSFWorkbook wb){
+
+        File userImportFile = new File(basePath + "userImport.xlsx");
+        FileOutputStream fo = null; // 输出到文件
+
+        try {
+            fo = new FileOutputStream(userImportFile);
+            wb.write(fo);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(fo != null){
+                try {
+                    fo.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
 }
