@@ -17,16 +17,19 @@ public class HuarunTest {
 
     public static String serverInfoDir = "/Users/chenjianxing/Documents/init_sql/server_info_list.xlsx";
 
-    public static String serverDemoDir = "/Users/chenjianxing/Documents/init_sql/new_demo.xlsx";
+    public static String serverDemoDir = "/Users/chenjianxing/Documents/init_sql/server_demo.xlsx";
 
-    public static String userDemoDir = "/Users/chenjianxing/Documents/init_sql/test_user.xlsx";
+    public static String userDemoDir = "/Users/chenjianxing/Documents/init_sql/user_demo.xlsx";
 
-    public static String userInfoDir = "/Users/chenjianxing/Documents/init_sql/user_info_list.xlsx";
+    public static String userFailDemoDir = "/Users/chenjianxing/Documents/init_sql/fail_user.xlsx";
+
+    public static String userInfoDir = "/Users/chenjianxing/Documents/init_sql/user_info_list_clear.xlsx";
 
     public AssestFrom assestFrom = new AssestFrom();
     public ServerInforFrom serverInforFrom = new ServerInforFrom();
     public ServerDemoFrom serverDemoFrom = new ServerDemoFrom();
     public UserDemoFrom userDemoFrom = new UserDemoFrom();
+    public UserDemoFrom userFailFrom = new UserDemoFrom();
     public UserInfoFrom userInfoFrom = new UserInfoFrom();
 
     public static ExcelUtil excelUtil = new ExcelUtil();
@@ -35,11 +38,34 @@ public class HuarunTest {
     //需要初始化组织名称
     public String []  orgStrs = new String[]{
             "数据中心"
-//            ,"系统开发中心"
-//            "保险","部室","华润医商"
-//            "华创07","华润电力07"
+            ,"系统开发中心"
+            , "保险"
+            ,"部室"
+            ,"华创"
+            ,"华润电力"
+            ,"华润纺织"
+            ,"华润化工"
+            ,"华润物业"
+            ,"华润雪花"
+            ,"华润医商"
+            ,"金融"
+            ,"燃气"
+            ,"三九"
+            , "双鹤"
+            ,"水泥"
+            ,"微电子"
+            ,"五丰"
+            ,"信托"
+            ,"医药"
+            ,"饮料"
+            ,"置地"
+            ,"资本"
+            ,"资产"
+            ,"租赁"
+            ,"万家"
+            ,"健康"
     };
-    public Integer rootNodeStartKey = 4;
+    public Integer rootNodeStartKey = 2;
     //-------------------------->>>>>>>>>>>>>>>>>>>>
 
 //    public Map<String,String> orgs = new TreeMap<String, String>();
@@ -82,6 +108,7 @@ public class HuarunTest {
                 serverDemoFrom.setWb(excelUtil.loadExcel2007(serverDemoDir));
                 userDemoFrom.setWb(excelUtil.loadExcel2007(userDemoDir));
                 userInfoFrom.setWb(excelUtil.loadExcel2007(userInfoDir));
+                userFailFrom.setWb(excelUtil.loadExcel2007(userFailDemoDir));
 
 
                 init();
@@ -95,7 +122,7 @@ public class HuarunTest {
 
                 Map<String, ServerInfoModle> serverInfos = buildServerInfoModle(orgDatas);
 
-                System.out.println(new Gson().toJson(serverInfos));
+                //System.out.println(new Gson().toJson(serverInfos));
 
                 Map<String,String> userGroups = new TreeMap<String, String>();
 
@@ -122,7 +149,7 @@ public class HuarunTest {
                 //SqlUtils.addAssetsToNodes(org, orgDatas);
 
                 //删除根节点的关联关系
-                SqlUtils.deleteRootNodeWithAssets(orgDatas, orgName, orgId);
+                //SqlUtils.deleteRootNodeWithAssets(orgDatas, orgName, orgId);
 
                 ////创建授权规则
                 //SqlUtils.createAssetPermission(orgDatas, orgName, orgId);
@@ -134,9 +161,9 @@ public class HuarunTest {
 
             }
 
-            Map<String, UserInfoModle> stringUserInfoModleMap = buildUserInfoModle(userInfoFrom);
-            //创建用户信息导入文件
-            SqlUtils.createUserImportFile(userDemoFrom, stringUserInfoModleMap);
+//            Map<String, UserInfoModle> stringUserInfoModleMap = buildUserInfoModle(userInfoFrom);
+//            //创建用户信息导入文件
+//            SqlUtils.createUserImportFile(userDemoFrom, userFailFrom, stringUserInfoModleMap);
 
 
         } catch (IOException e) {
@@ -231,7 +258,7 @@ public class HuarunTest {
     }
 
 
-    private Map<String,DataModle> buildDatas(Set<String> systemUsersSet) {
+    private Map<String,DataModle> buildDatas(Set<String> systemUsersSet) throws Exception {
 
         Map<String,DataModle> orgDatas = new TreeMap<String, DataModle>();
 
@@ -268,14 +295,24 @@ public class HuarunTest {
                 systemUsers = Arrays.asList(systemUserStr.split("\n"));
                 ips = Arrays.asList(ipStrs.split("\n"));
                 dataModle.setUserNames(userNames);
-                dataModle.setHostNames(hostNames);
+                dataModle.setHostNames(new ArrayList<String>(hostNames));
                 dataModle.setSystemUsers(systemUsers);
-                dataModle.setIps(ips);
+                dataModle.setIps(new ArrayList<String>(ips));
                 systemUsersSet.addAll(systemUsers);
+
+                //重复
+                if(orgDatas.containsKey(ruleName)){
+                    System.out.println("======== " + ruleName );
+                    DataModle dataModle1 = orgDatas.get(ruleName);
+                    dataModle.getHostNames().addAll(dataModle1.getHostNames());
+                    dataModle.getIps().addAll(dataModle1.getIps());
+                }
+
                 orgDatas.put(ruleName, dataModle);
             } catch (Exception e) {
                 System.out.println("build datas faile...");
                 e.printStackTrace();
+                throw e;
             }
         }
         excelUtil.close(assestFrom.getWb());
@@ -328,6 +365,7 @@ public class HuarunTest {
         initCommonInfo(serverInforFrom);
         initCommonInfo(serverDemoFrom);
         initCommonInfo(userDemoFrom);
+        initCommonInfo(userFailFrom);
         initCommonInfo(userInfoFrom);
 
         for(int i = 1; i < 15; i++) {
@@ -421,6 +459,33 @@ public class HuarunTest {
             }
             if(value.trim().equals("失效日期")){
                 userDemoFrom.setOverTimeNum(i - 1);
+            }
+        }
+        for(int i = 1; i < 15; i++) {
+            String value = excelUtil.readExcelByRowAndCol(userFailFrom.getWb(), 1, 1, i);
+            if(value.trim().equals("名称")){
+                userFailFrom.setNameNum(i - 1);
+            }
+            if(value.trim().equals("用户名")){
+                userFailFrom.setUserNameNum(i - 1);
+            }
+            if(value.trim().equals("邮件")){
+                userFailFrom.setMailNum(i - 1);
+            }
+            if(value.trim().equals("用户组")){
+                userFailFrom.setUserGroupNum(i - 1);
+            }
+            if(value.trim().equals("角色")){
+                userFailFrom.setRoleNum(i - 1);
+            }
+            if(value.trim().equals("MFA")){
+                userFailFrom.setMFANum(i - 1 );
+            }
+            if(value.trim().equals("有效")){
+                userFailFrom.setActivateNum(i - 1);
+            }
+            if(value.trim().equals("失效日期")){
+                userFailFrom.setOverTimeNum(i - 1);
             }
         }
 

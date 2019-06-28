@@ -1,5 +1,6 @@
 package huarun.com.utils;
 
+import com.google.gson.Gson;
 import huarun.com.constant.SystemType;
 import huarun.com.enity.*;
 import org.apache.commons.lang3.StringUtils;
@@ -81,7 +82,7 @@ public class SqlUtils {
 
     public static void addUserToOrg(Collection<DataModle> datas, String orgName, String orgId) {
 
-        File addUserToOrgSql = getFile(orgName, "06_addUserToOrgSql.sql");
+        File addUserToOrgSql = getFile(orgName, "07_addUserToOrgSql.sql");
         FileOutputStream fileOut = null;
 
         List<String> userNames = new ArrayList<String>();
@@ -97,7 +98,7 @@ public class SqlUtils {
             for (String userName :
                     userNames) {
                 String sql = "INSERT INTO orgs_organization_users(user_id, organization_id) " +
-                        "select u.id,g.id from users_user u, orgs_organization g where u.username='" + userName + "' and g.name = '" + orgId + "';";
+                        "select u.id,g.id from users_user u, orgs_organization g where u.username='" + userName + "' and g.name = '" + orgName + "';";
                 fileOut.write(sql.getBytes());
                 fileOut.write("\n".getBytes());
             }
@@ -120,7 +121,7 @@ public class SqlUtils {
 
     public static void addUserToUserGroup(Map<String,DataModle> datas, Set<String> userGroups, String orgName, String orgId) {
 
-        File orgCreateSql = getFile(orgName, "07_addUserToUserGroup.sql");
+        File orgCreateSql = getFile(orgName, "08_addUserToUserGroup.sql");
         FileOutputStream fileOut = null;
 
         List<String> userNames = new ArrayList<String>();
@@ -170,7 +171,7 @@ public class SqlUtils {
             fileOut = new FileOutputStream(createNodesSql);
 
             String rootNodeSql = "INSERT INTO assets_node (id,`key`,value,child_mark,date_create,org_id) " +
-                    "VALUES ('" + uuid.toString().replace("-","") + "','" + rootNodeStartKey + "','" + orgId + "'," + nodes.size() + ",'" + getCurrentTime() + "','" + orgId + "') ;";
+                    "VALUES ('" + uuid.toString().replace("-","") + "','" + rootNodeStartKey + "','" + orgName + "'," + nodes.size() + ",'" + getCurrentTime() + "','" + orgId + "') ;";
             rootNodes.put(orgName, rootNodeStartKey);
             fileOut.write(rootNodeSql.getBytes());
             fileOut.write("\n".getBytes());
@@ -284,7 +285,7 @@ public class SqlUtils {
 
     public static void createAssetPermission(Map<String, DataModle> orgDatas, String orgName , String orgId) {
 
-        File createAssetPermissionSql = getFile(orgName, "8_createAssetPermissionSql.sql");
+        File createAssetPermissionSql = getFile(orgName, "6_createAssetPermissionSql.sql");
 
         FileOutputStream fileOut = null;
 
@@ -383,9 +384,9 @@ public class SqlUtils {
             }
 
             BuildWb(serverDemoFrom, serverInfoModle, rowIdex, adminUserMap);
-            writeToExcel(orgName, serverDemoFrom.getWb(), orgNum);
             rowIdex ++ ;
         }
+        writeToExcel(orgName, serverDemoFrom.getWb(), orgNum);
         //System.out.println("rowIdex: " + rowIdex);
     }
 
@@ -494,7 +495,7 @@ public class SqlUtils {
                                 "WHERE asset_id = ( " +
                                 "SELECT id FROM assets_asset WHERE hostname = '" + hostName + "' and org_id = '" + orgId + "'" +
                                 ") and node_id = (" +
-                                "SELECT id FROM assets_node WHERE  value = '" + orgId + "' and org_id = '" + orgId + "'" +
+                                "SELECT id FROM assets_node WHERE  value = '" + orgName + "' and org_id = '" + orgId + "'" +
                                 ");";
                         fileOut.write(sql.getBytes());
                         fileOut.write("\n".getBytes());
@@ -513,56 +514,129 @@ public class SqlUtils {
 
     }
 
-    public static void createUserImportFile(UserDemoFrom userDemoFrom, Map<String, UserInfoModle> userInfos) {
+    public static void createUserImportFile(UserDemoFrom userDemoFrom, UserDemoFrom userFailFrom, Map<String, UserInfoModle> userInfos) {
 
         Integer rowIdex = 1;
+        Integer rowfailIdex = 1;
+        Set<String> emails = new HashSet<String>();
+        Set<String> names = new HashSet<String>();
+
         for (UserInfoModle userInfo:
              userInfos.values()) {
 
-            BuildUserWb(userDemoFrom, userInfo, rowIdex);
-            writeToUserExcel(userDemoFrom.getWb());
-            rowIdex ++ ;
+            if(BuildUserWb(userDemoFrom, userFailFrom , userInfo, rowIdex, rowfailIdex , emails, names)){
+                rowfailIdex++;
+            }else {
+                rowIdex ++ ;
+            }
         }
+        writeToUserExcel(userDemoFrom.getWb());
+        writeToFailUserExcel(userFailFrom.getWb());
 
     }
 
-    public static void BuildUserWb(UserDemoFrom userDemoFrom, UserInfoModle userInfoModle, int rowIdex){
+    public static Boolean BuildUserWb(UserDemoFrom userDemoFrom, UserDemoFrom userFailFrom, UserInfoModle userInfoModle, int rowIdex, int rowfailIdex, Set<String> emails, Set<String> names){
 
-        XSSFSheet firstSheet = userDemoFrom.getFirstSheet();
+        XSSFSheet firstSheet = null;
+        XSSFRow row = null;
+        UserDemoFrom currenFrom = null;
 
-        XSSFRow row = firstSheet.createRow(rowIdex);
+        Boolean isFail = false;
+        Integer index = null;
 
+        if(names.contains(userInfoModle.getLoginUser().trim().toLowerCase())
+                || emails.contains(userInfoModle.getMail().trim().toLowerCase())){
+            currenFrom = userFailFrom;
+            index = rowfailIdex;
+            isFail = true;
+            System.out.println("repeat: " + userInfoModle.getLoginUser());
+        } else {
+            index = rowIdex;
+            currenFrom = userDemoFrom;
+        }
 
-        row.createCell(userDemoFrom.getNameNum())
+        firstSheet = currenFrom.getFirstSheet();
+        row = firstSheet.createRow(index);
+
+        row.createCell(currenFrom.getNameNum())
                 .setCellValue(userInfoModle.getUserName());
 
-        row.createCell(userDemoFrom.getUserNameNum())
+//        if(names.contains(userInfoModle.getLoginUser().trim().toLowerCase())){
+//            System.out.println("repeat name: " + userInfoModle.getLoginUser());
+//        }
+
+        row.createCell(currenFrom.getUserNameNum())
                 .setCellValue(userInfoModle.getLoginUser());
 
-        row.createCell(userDemoFrom.getMailNum())
-                .setCellValue(userInfoModle.getMail());
+        if(StringUtils.isNotBlank(userInfoModle.getLoginUser().trim())){
+            names.add(userInfoModle.getLoginUser().trim().toLowerCase());
+        }
 
-        row.createCell(userDemoFrom.getUserGroupNum())
+//        if(emails.contains(userInfoModle.getMail().trim().toLowerCase())){
+////            System.out.println("repeat email: " + userInfoModle.getMail());
+////        }
+
+        if(StringUtils.isNotBlank(userInfoModle.getMail()) && !emails.contains(userInfoModle.getMail().trim().toLowerCase())){
+            row.createCell(currenFrom.getMailNum())
+                    .setCellValue(userInfoModle.getMail());
+        } else {
+            row.createCell(currenFrom.getMailNum())
+                    .setCellValue("asdfgzxcv@fit"+ index +"cloud.com");
+        }
+
+        if(StringUtils.isNotBlank(userInfoModle.getMail().trim())){
+            emails.add(userInfoModle.getMail().trim().toLowerCase());
+        }
+
+        row.createCell(currenFrom.getUserGroupNum())
                 .setCellValue("[]");
 
-        row.createCell(userDemoFrom.getRoleNum())
+        row.createCell(currenFrom.getRoleNum())
                 .setCellValue("User");
 
-        row.createCell(userDemoFrom.getMFANum())
+        row.createCell(currenFrom.getMFANum())
                 .setCellValue("0");
 
-        row.createCell(userDemoFrom.getActivateNum())
+        row.createCell(currenFrom.getActivateNum())
                 .setCellValue("TRUE");
 
-        row.createCell(userDemoFrom.getOverTimeNum())
-                .setCellValue(userInfoModle.getOverTime() + ":00 +0800");
+        if(StringUtils.isNotBlank(userInfoModle.getOverTime().trim())){
+            row.createCell(currenFrom.getOverTimeNum())
+                    .setCellValue(userInfoModle.getOverTime() + ":00 +0800");
+        }
 
+        if (isFail){
+            return true;
+        }
+
+        return false;
     }
 
 
     public static void writeToUserExcel(XSSFWorkbook wb){
 
         File userImportFile = new File(basePath + "userImport.xlsx");
+        FileOutputStream fo = null; // 输出到文件
+
+        try {
+            fo = new FileOutputStream(userImportFile);
+            wb.write(fo);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if(fo != null){
+                try {
+                    fo.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public static void writeToFailUserExcel(XSSFWorkbook wb){
+
+        File userImportFile = new File(basePath + "failUserImport.xlsx");
         FileOutputStream fo = null; // 输出到文件
 
         try {
